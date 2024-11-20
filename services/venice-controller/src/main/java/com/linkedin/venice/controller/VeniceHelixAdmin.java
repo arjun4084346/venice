@@ -5151,6 +5151,7 @@ public class VeniceHelixAdmin implements Admin, StoreCleaner {
         store.setIsDavinciHeartbeatReported(aBool);
         return store;
       realTimeTopicName.ifPresent(aString -> storeMetadataUpdate(clusterName, storeName, store -> {
+        ensureRealTimeTopicIsReady(clusterName, pubSubTopicRepository.getTopic(aString));
         store.setRealTimeTopicName(aString);
       }));
 

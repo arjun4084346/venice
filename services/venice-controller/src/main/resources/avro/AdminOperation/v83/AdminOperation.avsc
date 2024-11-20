@@ -289,8 +289,12 @@
                       "type": "int",
                       "doc": "Policy that will be used during buffer replay. rewindTimeInSeconds defines the delta. 0 => REWIND_FROM_EOP (replay from 'EOP - rewindTimeInSeconds'), 1 => REWIND_FROM_SOP (replay from 'SOP - rewindTimeInSeconds')",
                       "default": 0
+<<<<<<< HEAD
                     },
                     {"name": "realTimeTopicName", "type": "string", "default": "", "doc": "Name of the real time topic this store/version uses"}
+=======
+                    }
+>>>>>>> 6d947e9d0 (.)
                   ]
                 }
               ],
@@ -660,6 +664,15 @@
               "doc": "How many producers will be used for the nearline producer in Server to improve producing throughput",
               "type": "int",
               "default": 1
+<<<<<<< HEAD
+=======
+            },
+            {
+              "name": "realTimeTopicName",
+              "doc": "Name of the new real time topic, if you want to change partition count or something else. DO NOT RUN THIS, FEATURE IS UNDER DEVELOPMENT!",
+              "type": "string",
+              "default": ""
+>>>>>>> 6d947e9d0 (.)
             }
           ]
         },

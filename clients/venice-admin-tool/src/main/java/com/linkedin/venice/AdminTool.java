@@ -3,6 +3,7 @@ package com.linkedin.venice;
 import static com.linkedin.venice.CommonConfigKeys.SSL_FACTORY_CLASS_NAME;
 import static com.linkedin.venice.ConfigKeys.KAFKA_BOOTSTRAP_SERVERS;
 import static com.linkedin.venice.VeniceConstants.DEFAULT_SSL_FACTORY_CLASS_NAME;
+import static com.linkedin.venice.controllerapi.ControllerApiConstants.*;
 import static com.linkedin.venice.schema.AvroSchemaParseUtils.parseSchemaFromJSONLooseValidation;
 import static com.linkedin.venice.serialization.avro.AvroProtocolDefinition.SERVER_ADMIN_RESPONSE;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG;
@@ -583,6 +584,9 @@ public class AdminTool {
           break;
         case DUMP_HOST_HEARTBEAT:
           dumpHostHeartbeat(cmd);
+          break;
+        case CREATE_REAL_TIME_TOPIC:
+          createRealTimeTopic(cmd);
           break;
         default:
           StringJoiner availableCommands = new StringJoiner(", ");
@@ -3397,4 +3401,10 @@ public class AdminTool {
         .create(new VeniceProperties(consumerProps), false, pubSubMessageDeserializer, "admin-tool-topic-dumper");
   }
 
+  private static void createRealTimeTopic(CommandLine cmd) {
+    String storeName = getRequiredArgument(cmd, Arg.STORE, Command.CREATE_REAL_TIME_TOPIC);
+    String partitionNum = getOptionalArgument(cmd, Arg.PARTITION_COUNT);
+    PartitionResponse response = controllerClient.createRealTimeTopic(storeName, partitionNum);
+    printSuccess(response);
+  }
 }

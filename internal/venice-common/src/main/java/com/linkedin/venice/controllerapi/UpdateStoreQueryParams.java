@@ -770,13 +770,6 @@ public class UpdateStoreQueryParams extends QueryParams {
 
   public Optional<Boolean> getIsDavinciHeartbeatReported() {
     return getBoolean(IS_DAVINCI_HEARTBEAT_REPORTED);
-
-  public UpdateStoreQueryParams setRealTimeTopicName(String realTimeTopicName) {
-    return putString(REAL_TIME_TOPIC_NAME, realTimeTopicName);
-  }
-
-  public Optional<String> getRealTimeTopicName() {
-    return getInteger(REAL_TIME_TOPIC_NAME);
   }
 
   // ***************** above this line are getters and setters *****************

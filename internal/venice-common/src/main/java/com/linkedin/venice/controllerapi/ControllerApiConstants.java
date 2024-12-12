@@ -255,5 +255,4 @@ public class ControllerApiConstants {
   public static final String TARGET_SWAP_REGION = "target_swap_region";
   public static final String TARGET_SWAP_REGION_WAIT_TIME = "target_swap_region_wait_time";
   public static final String IS_DAVINCI_HEARTBEAT_REPORTED = "is_davinci_heartbeat_reported";
-  public static final String REAL_TIME_TOPIC_NAME = "real_time_topic_name";
 }

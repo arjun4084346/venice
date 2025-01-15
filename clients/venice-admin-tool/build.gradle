@@ -30,6 +30,8 @@ dependencies {
   implementation('org.apache.helix:metrics-common:1.4.1:jdk8')
   implementation libraries.zstd
 
+  implementation libraries.commonsLang
+
   testImplementation project(':internal:venice-common').sourceSets.test.output
 }
 

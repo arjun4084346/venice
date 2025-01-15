@@ -678,6 +678,11 @@ public class AdminTool {
     return controllerClient.queryStoreList(includeSystemStores, configNameFilter, configValueFilter);
   }
 
+  private static void findStoreList(CommandLine cmd) {
+    FindStoresTool findStoresTool = new FindStoresTool();
+    findStoresTool.findStoreList(cmd);
+  }
+
   private static void queryStoreForKey(CommandLine cmd, String veniceUrl) throws Exception {
     String store = getRequiredArgument(cmd, Arg.STORE);
     String keyString = getRequiredArgument(cmd, Arg.KEY);

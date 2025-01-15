@@ -60,6 +60,7 @@ import static com.linkedin.venice.controllerapi.ControllerRoute.SET_VERSION;
 import static com.linkedin.venice.controllerapi.ControllerRoute.STORAGE_ENGINE_OVERHEAD_RATIO;
 import static com.linkedin.venice.controllerapi.ControllerRoute.STORE;
 import static com.linkedin.venice.controllerapi.ControllerRoute.UPDATE_STORE;
+import static com.linkedin.venice.zk.VeniceZkPaths.OFFLINE_PUSHES;
 
 import com.linkedin.venice.HttpConstants;
 import com.linkedin.venice.acl.DynamicAccessController;
@@ -69,6 +70,7 @@ import com.linkedin.venice.controller.kafka.TopicCleanupService;
 import com.linkedin.venice.controller.repush.RepushJobRequest;
 import com.linkedin.venice.controllerapi.ClusterStaleDataAuditResponse;
 import com.linkedin.venice.controllerapi.ControllerResponse;
+import com.linkedin.venice.controllerapi.LogResponse;
 import com.linkedin.venice.controllerapi.MultiStoreInfoResponse;
 import com.linkedin.venice.controllerapi.MultiStoreResponse;
 import com.linkedin.venice.controllerapi.MultiStoreStatusResponse;
@@ -108,17 +110,21 @@ import com.linkedin.venice.pubsub.api.exceptions.PubSubTopicDoesNotExistExceptio
 import com.linkedin.venice.pubsub.manager.TopicManager;
 import com.linkedin.venice.systemstore.schemas.StoreProperties;
 import com.linkedin.venice.utils.Utils;
+import com.linkedin.venice.zk.VeniceZkPaths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.avro.Schema;
+import org.apache.helix.zookeeper.zkclient.exception.ZkNoNodeException;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 import spark.Request;
 import spark.Route;
 
@@ -259,6 +265,87 @@ public class StoresRoutes extends AbstractRoute {
         veniceResponse.setStores(storeNameList);
       }
     };
+  }
+
+  public Route getAllLogs(Admin admin) {
+    return new VeniceRouteHandler<LogResponse>(LogResponse.class) {
+      @Override
+      public void internalHandle(Request request, LogResponse veniceResponse) {
+        int version = Integer.parseInt(request.queryParams(VERSION));
+        String store = request.queryParams(NAME);
+        String cluster = request.queryParams(CLUSTER);
+        List<LogResponse.KeyValuePair> logs = new ArrayList<>();
+
+        if (version == -1) {
+          Pattern pattern = Pattern.compile("^" + store + "_v[0-9]+$");
+          List<String> ongoingOfflinePushes = new ArrayList<>();
+          try {
+            ongoingOfflinePushes = admin.getZNodeChildren(cluster, "/" + OFFLINE_PUSHES);
+          } catch (ZkNoNodeException e) {
+            LOGGER.warn("Node " + OFFLINE_PUSHES + " does not exist.");
+          }
+          if (ongoingOfflinePushes.isEmpty()) {
+            LOGGER.warn("No offline pushes found");
+          }
+          for (String resourceName: ongoingOfflinePushes) {
+            if (pattern.matcher(resourceName).matches()) {
+              addToLog(logs, admin, cluster, "/CUSTOMIZEDVIEW/OFFLINE_PUSH/" + resourceName);
+              addToLog(logs, admin, cluster, "/EXTERNALVIEW/" + resourceName);
+              addLogsRecursively(logs, admin, cluster, "/" + VeniceZkPaths.OFFLINE_PUSHES + "/" + resourceName, 2);
+            }
+          }
+        } else {
+          addToLog(logs, admin, cluster, "/CUSTOMIZEDVIEW/OFFLINE_PUSH/" + store + "_v" + version);
+          addToLog(logs, admin, cluster, "/EXTERNALVIEW/" + store + "_v" + version);
+          addLogsRecursively(
+              logs,
+              admin,
+              cluster,
+              "/" + VeniceZkPaths.OFFLINE_PUSHES + "/" + store + "_v" + version,
+              2);
+        }
+        veniceResponse.setLog(logs);
+      }
+    };
+  }
+
+  private void addToLog(List<LogResponse.KeyValuePair> logs, Admin admin, String cluster, String path) {
+    try {
+      String data = admin.getZNodeData(cluster, path);
+      if (Strings.isBlank(data)) {
+        LOGGER.warn("Zk path " + path + " is empty.");
+      }
+
+      logs.add(new LogResponse.KeyValuePair(path, admin.getZNodeData(cluster, path)));
+    } catch (ZkNoNodeException e) {
+      LOGGER.warn("Zk path " + path + " does not exist.");
+    }
+  }
+
+  private void addLogsRecursively(
+      List<LogResponse.KeyValuePair> logs,
+      Admin admin,
+      String cluster,
+      String path,
+      int depth) {
+    if (depth > 0) {
+      addToLog(logs, admin, cluster, path);
+    }
+
+    if (depth > 1) {
+      List<String> resources = new ArrayList<>();
+      try {
+        resources = admin.getZNodeChildren(cluster, path);
+      } catch (ZkNoNodeException e) {
+        LOGGER.warn("Zk path " + path + " does not exist.");
+      }
+      if (resources.isEmpty()) {
+        LOGGER.warn("No resources found");
+      }
+      for (String resource: resources) {
+        addLogsRecursively(logs, admin, cluster, path + "/" + resource, depth - 1);
+      }
+    }
   }
 
   /**

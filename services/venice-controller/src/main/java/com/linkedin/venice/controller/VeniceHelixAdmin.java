@@ -141,6 +141,7 @@ import com.linkedin.venice.meta.ReadWriteStoreRepository;
 import com.linkedin.venice.meta.RegionPushDetails;
 import com.linkedin.venice.meta.RoutersClusterConfig;
 import com.linkedin.venice.meta.RoutingDataRepository;
+import com.linkedin.venice.meta.SimpleStringSerializer;
 import com.linkedin.venice.meta.Store;
 import com.linkedin.venice.meta.StoreCleaner;
 import com.linkedin.venice.meta.StoreConfig;
@@ -461,6 +462,7 @@ public class VeniceHelixAdmin implements Admin, StoreCleaner {
   private final LogContext logContext;
 
   final Map<String, DeadStoreStats> deadStoreStatsMap = new VeniceConcurrentHashMap<>();
+  private final ZkBaseDataAccessor<String> zkAccessor2;
 
   public VeniceHelixAdmin(
       VeniceControllerMultiClusterConfig multiClusterConfigs,
@@ -781,6 +783,16 @@ public class VeniceHelixAdmin implements Admin, StoreCleaner {
         Lazy.of(() -> ByteBuffer.wrap(ZstdWithDictCompressor.buildDictionaryOnSyntheticAvroData()));
 
     pushJobUserErrorCheckpoints = commonConfig.getPushJobUserErrorCheckpoints();
+
+    ZkClient zkClient2 = ZkClientFactory.newZkClient(multiClusterConfigs.getZkAddress());
+    HelixAdapterSerializer helixAdapterSerializer2 = new HelixAdapterSerializer();
+    // helixAdapterSerializer2.registerSerializer(
+    // ZkAllowlistAccessor.getAllowListPath(PathResourceRegistry.WILDCARD_MATCH_ANY),
+    // new SimpleStringSerializer());
+    helixAdapterSerializer2.registerSerializer("/*/*/*", new SimpleStringSerializer());
+    helixAdapterSerializer2.registerSerializer("/*/*/*/*", new SimpleStringSerializer());
+    zkClient2.setZkSerializer(helixAdapterSerializer2);
+    zkAccessor2 = new ZkBaseDataAccessor<>(zkClient2);
   }
 
   private VeniceProperties getPubSubSSLPropertiesFromControllerConfig(String pubSubBootstrapServers) {
@@ -8525,6 +8537,14 @@ public class VeniceHelixAdmin implements Admin, StoreCleaner {
         }
       });
     }
+  }
+
+  public String getZNodeData(String clusterName, String path) {
+    return zkAccessor2.get(HelixUtils.getHelixClusterZkPath(clusterName) + path, null, 0); // check this param
+  }
+
+  public List<String> getZNodeChildren(String clusterName, String path) {
+    return zkClient.getChildren(HelixUtils.getHelixClusterZkPath(clusterName) + path);
   }
 
   Store checkPreConditionForAclOp(String clusterName, String storeName) {

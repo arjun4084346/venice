@@ -67,7 +67,7 @@ public class ZkAllowlistAccessor implements AllowlistAccessor {
     zkClient.delete(getAllowListInstancePath(clusterName, helixNodeId));
   }
 
-  private String getAllowListPath(String clusterName) {
+  public static String getAllowListPath(String clusterName) {
     return HelixUtils.getHelixClusterZkPath(clusterName) + PREFIX_PATH;
   }
 

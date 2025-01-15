@@ -238,6 +238,7 @@ import com.linkedin.venice.systemstore.schemas.StoreMetaValue;
 import com.linkedin.venice.utils.AvroSchemaUtils;
 import com.linkedin.venice.utils.CollectionUtils;
 import com.linkedin.venice.utils.LogContext;
+import com.linkedin.venice.utils.HelixUtils;
 import com.linkedin.venice.utils.ObjectMapperFactory;
 import com.linkedin.venice.utils.Pair;
 import com.linkedin.venice.utils.PartitionUtils;
@@ -287,6 +288,7 @@ import javax.annotation.Nonnull;
 import org.apache.avro.Schema;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.Validate;
+import org.apache.helix.manager.zk.ZkBaseDataAccessor;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -903,6 +905,15 @@ public class VeniceParentHelixAdmin implements Admin {
     } finally {
       releaseAdminMessageLock(clusterName, storeName);
     }
+  }
+
+  public String getZNodeData(String clusterName, String path) {
+    ZkBaseDataAccessor<String> zkAccessor = new ZkBaseDataAccessor<>(getVeniceHelixAdmin().getZkClient());
+    return zkAccessor.get(HelixUtils.getHelixClusterZkPath(clusterName) + "/" + path, null, 0); // check this param
+  }
+
+  public List<String> getZNodeChildren(String clusterName, String path) {
+    return getVeniceHelixAdmin().getZkClient().getChildren(HelixUtils.getHelixClusterZkPath(clusterName) + "/" + path);
   }
 
   private void sendStoreCreationAdminMessage(

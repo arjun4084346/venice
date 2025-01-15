@@ -12,6 +12,7 @@ import com.linkedin.venice.controllerapi.ControllerClient;
 import com.linkedin.venice.controllerapi.MultiStoreResponse;
 import com.linkedin.venice.controllerapi.NewStoreResponse;
 import com.linkedin.venice.controllerapi.StoreResponse;
+import com.linkedin.venice.controllerapi.UpdateStoreQueryParams;
 import com.linkedin.venice.integration.utils.ServiceFactory;
 import com.linkedin.venice.integration.utils.VeniceControllerWrapper;
 import com.linkedin.venice.integration.utils.VeniceMultiClusterWrapper;
@@ -20,6 +21,7 @@ import com.linkedin.venice.integration.utils.VeniceTwoLayerMultiRegionMultiClust
 import com.linkedin.venice.meta.StoreInfo;
 import com.linkedin.venice.utils.TestUtils;
 import com.linkedin.venice.utils.Utils;
+import java.io.File;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -28,6 +30,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -297,6 +300,61 @@ public class AdminToolE2ETest {
       validateStoreMigrationStatus(parentControllerClient, storeName, false, "parentController");
       validateStoreMigrationStatusAcrossChildRegions(storeName, clusterName, false);
     }
+  }
+
+  @Test // (timeOut = TEST_TIMEOUT)
+  public void testGetDebugInfo() throws Exception {
+    String storeName = Utils.getUniqueString("testUpdateStoreRealTimeTopicName");
+    List<VeniceControllerWrapper> parentControllers = multiRegionMultiClusterWrapper.getParentControllers();
+    String clusterName = clusterNames[0];
+    String parentControllerURLs =
+        parentControllers.stream().map(VeniceControllerWrapper::getControllerUrl).collect(Collectors.joining(","));
+    UpdateStoreQueryParams updateStoreParams = new UpdateStoreQueryParams();
+    updateStoreParams.setIncrementalPushEnabled(true)
+        .setNumVersionsToPreserve(2)
+        .setHybridRewindSeconds(1000)
+        .setActiveActiveReplicationEnabled(true)
+        .setHybridOffsetLagThreshold(1000);
+    ControllerClient parentControllerClient = new ControllerClient(clusterName, parentControllerURLs);
+    ControllerClient childControllerClient = ControllerClient
+        .constructClusterControllerClient(clusterName, childDatacenters.get(0).getControllerConnectString());
+
+    TestUtils.assertCommand(
+        parentControllerClient
+            .retryableRequest(5, c -> c.createNewStore(storeName, "test", "\"string\"", "\"string\"")));
+
+    TestUtils
+        .assertCommand(parentControllerClient.retryableRequest(5, c -> c.updateStore(storeName, updateStoreParams)));
+
+    TestUtils.assertCommand(
+        parentControllerClient
+            .retryableRequest(5, c -> c.emptyPush(storeName, Utils.getUniqueString("empty-push-1"), 1L)));
+
+    TestUtils.waitForNonDeterministicCompletion(
+        100,
+        TimeUnit.SECONDS,
+        () -> childControllerClient.getStore(storeName).getStore().getCurrentVersion() > 0);
+
+    // Update update-real-time-topic to true
+    String[] adminToolArgs = new String[] { "--url", childControllerClient.getLeaderControllerUrl(), "--cluster",
+        clusterName, "--store", storeName, "--get-debug-info" };
+
+    AdminTool.main(adminToolArgs);
+
+    TestUtils.waitForNonDeterministicAssertion(30, TimeUnit.SECONDS, () -> {
+      String filePath = System.getProperty("user.home") + "/venice/" + clusterName;
+
+      // Create a File object
+      File file = new File(filePath);
+
+      // Check if the file exists
+      if (file.exists()) {
+        System.out.println("File exists!");
+      } else {
+        System.out.println("File does not exist.");
+        Assert.fail();
+      }
+    });
   }
 
   private void validateStoreMigrationStatusAcrossChildRegions(

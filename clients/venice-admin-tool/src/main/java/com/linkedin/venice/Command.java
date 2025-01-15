@@ -86,6 +86,7 @@ import static com.linkedin.venice.Arg.NUM_VERSIONS_TO_PRESERVE;
 import static com.linkedin.venice.Arg.OFFSET;
 import static com.linkedin.venice.Arg.OUTFILE;
 import static com.linkedin.venice.Arg.OWNER;
+import static com.linkedin.venice.Arg.PARENT_DIRECTORY;
 import static com.linkedin.venice.Arg.PARTITION;
 import static com.linkedin.venice.Arg.PARTITIONER_CLASS;
 import static com.linkedin.venice.Arg.PARTITIONER_PARAMS;
@@ -600,6 +601,10 @@ public enum Command {
   UPDATE_ADMIN_OPERATION_PROTOCOL_VERSION(
       "update-admin-operation-protocol-version", "Update the admin operation protocol version",
       new Arg[] { URL, CLUSTER, ADMIN_OPERATION_PROTOCOL_VERSION }
+  ),
+  GET_DEBUG_INFO(
+      "get-debug-info", "Dump debug information into a file", new Arg[] { URL, STORE },
+      new Arg[] { CLUSTER, VERSION, PARENT_DIRECTORY }
   );
 
   private final String commandName;

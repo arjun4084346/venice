@@ -68,6 +68,7 @@ import static com.linkedin.venice.controllerapi.ControllerRoute.LAST_SUCCEED_EXE
 import static com.linkedin.venice.controllerapi.ControllerRoute.LEADER_CONTROLLER;
 import static com.linkedin.venice.controllerapi.ControllerRoute.LIST_BOOTSTRAPPING_VERSIONS;
 import static com.linkedin.venice.controllerapi.ControllerRoute.LIST_CHILD_CLUSTERS;
+import static com.linkedin.venice.controllerapi.ControllerRoute.LIST_LOG;
 import static com.linkedin.venice.controllerapi.ControllerRoute.LIST_NODES;
 import static com.linkedin.venice.controllerapi.ControllerRoute.LIST_REPLICAS;
 import static com.linkedin.venice.controllerapi.ControllerRoute.LIST_STORES;
@@ -330,6 +331,8 @@ public class AdminSparkServer extends AbstractVeniceService {
     httpService.get(
         LIST_STORES.getPath(),
         new VeniceParentControllerRegionStateHandler(admin, storesRoutes.getAllStores(admin)));
+    httpService
+        .get(LIST_LOG.getPath(), new VeniceParentControllerRegionStateHandler(admin, storesRoutes.getAllLogs(admin)));
     httpService.get(
         CLUSTER_HEALTH_STORES.getPath(),
         new VeniceParentControllerRegionStateHandler(admin, storesRoutes.getAllStoresStatuses(admin)));

@@ -54,6 +54,7 @@ import static com.linkedin.venice.controllerapi.ControllerRoute.SET_VERSION;
 import static com.linkedin.venice.controllerapi.ControllerRoute.STORAGE_ENGINE_OVERHEAD_RATIO;
 import static com.linkedin.venice.controllerapi.ControllerRoute.STORE;
 import static com.linkedin.venice.controllerapi.ControllerRoute.UPDATE_STORE;
+import static com.linkedin.venice.zk.VeniceZkPaths.OFFLINE_PUSHES;
 
 import com.linkedin.venice.HttpConstants;
 import com.linkedin.venice.acl.DynamicAccessController;
@@ -62,6 +63,7 @@ import com.linkedin.venice.controller.AdminCommandExecutionTracker;
 import com.linkedin.venice.controller.kafka.TopicCleanupService;
 import com.linkedin.venice.controllerapi.ClusterStaleDataAuditResponse;
 import com.linkedin.venice.controllerapi.ControllerResponse;
+import com.linkedin.venice.controllerapi.LogResponse;
 import com.linkedin.venice.controllerapi.MultiStoreInfoResponse;
 import com.linkedin.venice.controllerapi.MultiStoreResponse;
 import com.linkedin.venice.controllerapi.MultiStoreStatusResponse;
@@ -106,8 +108,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.avro.Schema;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -251,6 +255,57 @@ public class StoresRoutes extends AbstractRoute {
         veniceResponse.setStores(storeNameList);
       }
     };
+  }
+
+  public Route getAllLogs(Admin admin) {
+    return new VeniceRouteHandler<>(LogResponse.class) {
+      @Override
+      public void internalHandle(Request request, LogResponse veniceResponse) {
+        int version = Integer.parseInt(request.queryParams(VERSION));
+        String store = request.queryParams(NAME);
+        String cluster = request.queryParams(CLUSTER);
+        List<Pair<String, String>> logs = new ArrayList<>();
+
+        if (version == -1) {
+          Pattern pattern = Pattern.compile("^" + store + "_v[0-9]+$");
+          List<String> ongoingOfflinePushes = admin.getZNodeChildren(cluster, OFFLINE_PUSHES);
+          for (String resourceName: ongoingOfflinePushes) {
+            if (pattern.matcher(resourceName).matches()) {
+              addToLog(logs, admin, cluster, "/CUSTOMIZEDVIEW/OFFLINE_PUSH/" + resourceName);
+              addToLog(logs, admin, cluster, "/EXTERNALVIEW/" + resourceName);
+              addLogsRecursively(logs, admin, cluster, "/OfflinePushes/" + resourceName, 2);
+            }
+          }
+        } else {
+          addToLog(logs, admin, cluster, "/CUSTOMIZEDVIEW/OFFLINE_PUSH/" + store + "_v" + version);
+          addToLog(logs, admin, cluster, "/EXTERNALVIEW/" + store + "_v" + version);
+          addLogsRecursively(logs, admin, cluster, "/OfflinePushes/" + store + "_v" + version, 2);
+        }
+        veniceResponse.setLog(logs);
+      }
+    };
+  }
+
+  private void addToLog(List<Pair<String, String>> logs, Admin admin, String cluster, String path) {
+    logs.add(Pair.of(path, admin.getZNodeData(cluster, path)));
+  }
+
+  private void addLogsRecursively(
+      List<Pair<String, String>> logs,
+      Admin admin,
+      String cluster,
+      String path,
+      int depth) {
+    if (depth > 0) {
+      addToLog(logs, admin, cluster, path);
+    }
+
+    if (depth > 1) {
+      List<String> resources = admin.getZNodeChildren(cluster, path);
+      for (String resource: resources) {
+        addLogsRecursively(logs, admin, cluster, path + "/" + resource, depth - 1);
+      }
+    }
   }
 
   /**

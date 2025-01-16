@@ -167,6 +167,10 @@ public interface Admin extends AutoCloseable, Closeable {
       boolean isSystemStore,
       Optional<String> accessPermissions);
 
+  String getZNodeData(String clusterName, String path);
+
+  List<String> getZNodeChildren(String clusterName, String path);
+
   boolean isStoreMigrationAllowed(String srcClusterName);
 
   void migrateStore(String srcClusterName, String destClusterName, String storeName);

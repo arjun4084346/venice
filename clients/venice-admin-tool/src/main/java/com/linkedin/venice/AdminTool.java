@@ -255,6 +255,9 @@ public class AdminTool {
           storeResponse = queryStoreList(cmd);
           printObject(storeResponse);
           break;
+        case GET_DEBUG_INFO:
+          getDebugInfo(cmd);
+          break;
         case DESCRIBE_STORE:
           storeName = getRequiredArgument(cmd, Arg.STORE, Command.DESCRIBE_STORE);
           for (String store: storeName.split(",")) {
@@ -678,9 +681,14 @@ public class AdminTool {
     return controllerClient.queryStoreList(includeSystemStores, configNameFilter, configValueFilter);
   }
 
-  private static void findStoreList(CommandLine cmd) {
-    FindStoresTool findStoresTool = new FindStoresTool();
-    findStoresTool.findStoreList(cmd);
+  private static void getDebugInfo(CommandLine cmd) throws IOException {
+    DebugCollector debugCollector = new DebugCollector();
+    int version = Integer.parseInt(getOptionalArgument(cmd, Arg.VERSION));
+    String store = getRequiredArgument(cmd, Arg.STORE);
+    String fabric = getRequiredArgument(cmd, Arg.FABRIC);
+    String cluster = getOptionalArgument(cmd, Arg.CLUSTER);
+    String parentDir = getOptionalArgument(cmd, Arg.PARENT_DIRECTORY, "./");
+    debugCollector.collectLogs(store, cluster, fabric, version, parentDir, controllerClient);
   }
 
   private static void queryStoreForKey(CommandLine cmd, String veniceUrl) throws Exception {

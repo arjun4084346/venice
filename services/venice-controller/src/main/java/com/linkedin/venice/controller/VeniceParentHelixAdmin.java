@@ -878,6 +878,16 @@ public class VeniceParentHelixAdmin implements Admin {
     }
   }
 
+  @Override
+  public String getZNodeData(String clusterName, String path) {
+    return null;
+  }
+
+  @Override
+  public List<String> getZNodeChildren(String clusterName, String path) {
+    return null;
+  }
+
   private void sendStoreCreationAdminMessage(
       String clusterName,
       String storeName,

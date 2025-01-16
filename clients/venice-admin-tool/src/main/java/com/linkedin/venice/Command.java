@@ -83,6 +83,7 @@ import static com.linkedin.venice.Arg.NUM_VERSIONS_TO_PRESERVE;
 import static com.linkedin.venice.Arg.OFFSET;
 import static com.linkedin.venice.Arg.OUTFILE;
 import static com.linkedin.venice.Arg.OWNER;
+import static com.linkedin.venice.Arg.PARENT_DIRECTORY;
 import static com.linkedin.venice.Arg.PARTITION;
 import static com.linkedin.venice.Arg.PARTITIONER_CLASS;
 import static com.linkedin.venice.Arg.PARTITIONER_PARAMS;
@@ -575,6 +576,10 @@ public enum Command {
       "dump-host-heartbeat",
       "Dump all heartbeat belong to a certain storage node. You can use topic/partition to filter specific resource, and you can choose to filter resources that are lagging.",
       new Arg[] { SERVER_URL, KAFKA_TOPIC_NAME }, new Arg[] { PARTITION, LAG_FILTER_ENABLED }
+  ),
+  GET_DEBUG_INFO(
+      "get-debug-info", "Dump debug information into a file", new Arg[] { FABRIC, STORE },
+      new Arg[] { CLUSTER, VERSION, PARENT_DIRECTORY }
   );
 
   private final String commandName;

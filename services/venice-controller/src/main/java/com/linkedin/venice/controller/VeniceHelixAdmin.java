@@ -8092,6 +8092,15 @@ public class VeniceHelixAdmin implements Admin, StoreCleaner {
     }
   }
 
+  public String getZNodeData(String clusterName, String path) {
+    ZkBaseDataAccessor<String> zkAccessor = new ZkBaseDataAccessor<>(zkClient);
+    return zkAccessor.get(HelixUtils.getHelixClusterZkPath(clusterName) + path, null, 0); // check this param
+  }
+
+  public List<String> getZNodeChildren(String clusterName, String path) {
+    return zkClient.getChildren(HelixUtils.getHelixClusterZkPath(clusterName) + path);
+  }
+
   Store checkPreConditionForAclOp(String clusterName, String storeName) {
     checkControllerLeadershipFor(clusterName);
     ReadWriteStoreRepository repository = getHelixVeniceClusterResources(clusterName).getStoreMetadataRepository();

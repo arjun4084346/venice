@@ -860,6 +860,11 @@ public class ControllerClient implements Closeable {
     return request(ControllerRoute.LIST_STORES, queryParams, MultiStoreResponse.class);
   }
 
+  public LogResponse getLogs(String store, int version) {
+    QueryParams queryParams = newParams().add(VERSION, version).add(NAME, store);
+    return request(ControllerRoute.LIST_LOG, queryParams, LogResponse.class);
+  }
+
   public MultiStoreStatusResponse listStoresStatuses() {
     return request(ControllerRoute.CLUSTER_HEALTH_STORES, newParams(), MultiStoreStatusResponse.class);
   }

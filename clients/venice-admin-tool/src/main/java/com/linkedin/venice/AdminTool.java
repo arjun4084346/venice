@@ -685,10 +685,10 @@ public class AdminTool {
     DebugCollector debugCollector = new DebugCollector();
     int version = Integer.parseInt(getOptionalArgument(cmd, Arg.VERSION));
     String store = getRequiredArgument(cmd, Arg.STORE);
-    String fabric = getRequiredArgument(cmd, Arg.FABRIC);
+    // String fabric = getRequiredArgument(cmd, Arg.FABRIC);
     String cluster = getOptionalArgument(cmd, Arg.CLUSTER);
     String parentDir = getOptionalArgument(cmd, Arg.PARENT_DIRECTORY, "./");
-    debugCollector.collectLogs(store, cluster, fabric, version, parentDir, controllerClient);
+    debugCollector.collectLogs(store, cluster, "abc", version, parentDir, controllerClient);
   }
 
   private static void queryStoreForKey(CommandLine cmd, String veniceUrl) throws Exception {

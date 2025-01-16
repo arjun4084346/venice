@@ -578,7 +578,7 @@ public enum Command {
       new Arg[] { SERVER_URL, KAFKA_TOPIC_NAME }, new Arg[] { PARTITION, LAG_FILTER_ENABLED }
   ),
   GET_DEBUG_INFO(
-      "get-debug-info", "Dump debug information into a file", new Arg[] { FABRIC, STORE },
+      "get-debug-info", "Dump debug information into a file", new Arg[] { STORE },
       new Arg[] { CLUSTER, VERSION, PARENT_DIRECTORY }
   );
 

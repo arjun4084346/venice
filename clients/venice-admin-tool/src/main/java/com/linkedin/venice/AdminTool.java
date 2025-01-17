@@ -683,11 +683,11 @@ public class AdminTool {
 
   private static void getDebugInfo(CommandLine cmd) throws IOException {
     DebugCollector debugCollector = new DebugCollector();
-    int version = Integer.parseInt(getOptionalArgument(cmd, Arg.VERSION));
+    int version = Integer.parseInt(getOptionalArgument(cmd, Arg.VERSION, "-1"));
     String store = getRequiredArgument(cmd, Arg.STORE);
     // String fabric = getRequiredArgument(cmd, Arg.FABRIC);
     String cluster = getOptionalArgument(cmd, Arg.CLUSTER);
-    String parentDir = getOptionalArgument(cmd, Arg.PARENT_DIRECTORY, "./");
+    String parentDir = getOptionalArgument(cmd, Arg.PARENT_DIRECTORY, System.getProperty("user.home"));
     debugCollector.collectLogs(store, cluster, "abc", version, parentDir, controllerClient);
   }
 

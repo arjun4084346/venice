@@ -112,6 +112,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.helix.zookeeper.zkclient.exception.ZkNoNodeException;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -258,7 +259,7 @@ public class StoresRoutes extends AbstractRoute {
   }
 
   public Route getAllLogs(Admin admin) {
-    return new VeniceRouteHandler<>(LogResponse.class) {
+    return new VeniceRouteHandler<LogResponse>(LogResponse.class) {
       @Override
       public void internalHandle(Request request, LogResponse veniceResponse) {
         int version = Integer.parseInt(request.queryParams(VERSION));
@@ -268,7 +269,12 @@ public class StoresRoutes extends AbstractRoute {
 
         if (version == -1) {
           Pattern pattern = Pattern.compile("^" + store + "_v[0-9]+$");
-          List<String> ongoingOfflinePushes = admin.getZNodeChildren(cluster, OFFLINE_PUSHES);
+          List<String> ongoingOfflinePushes = new ArrayList<>();
+          try {
+            ongoingOfflinePushes = admin.getZNodeChildren(cluster, OFFLINE_PUSHES);
+          } catch (ZkNoNodeException e) {
+            LOGGER.warn("Node " + OFFLINE_PUSHES + " does not exist.");
+          }
           for (String resourceName: ongoingOfflinePushes) {
             if (pattern.matcher(resourceName).matches()) {
               addToLog(logs, admin, cluster, "/CUSTOMIZEDVIEW/OFFLINE_PUSH/" + resourceName);
@@ -287,7 +293,11 @@ public class StoresRoutes extends AbstractRoute {
   }
 
   private void addToLog(List<Pair<String, String>> logs, Admin admin, String cluster, String path) {
-    logs.add(Pair.of(path, admin.getZNodeData(cluster, path)));
+    try {
+      logs.add(Pair.of(path, admin.getZNodeData(cluster, path)));
+    } catch (ZkNoNodeException e) {
+      LOGGER.warn("Zk path " + path + " does not exist.");
+    }
   }
 
   private void addLogsRecursively(
@@ -301,7 +311,12 @@ public class StoresRoutes extends AbstractRoute {
     }
 
     if (depth > 1) {
-      List<String> resources = admin.getZNodeChildren(cluster, path);
+      List<String> resources = new ArrayList<>();
+      try {
+        admin.getZNodeChildren(cluster, path);
+      } catch (ZkNoNodeException e) {
+        LOGGER.warn("Zk path " + path + " does not exist.");
+      }
       for (String resource: resources) {
         addLogsRecursively(logs, admin, cluster, path + "/" + resource, depth - 1);
       }

@@ -41,7 +41,7 @@ public class DebugCollector {
     for (Pair<String, String> logs: logResponse.getLog()) {
       String outPath = parentDir + logs.getKey() + "/__data__";
       new File(outPath).getParentFile().mkdirs();
-      try (FileWriter writer = new FileWriter(outPath + "/__data__")) {
+      try (FileWriter writer = new FileWriter(outPath)) {
         writer.write(logs.getValue());
       }
     }

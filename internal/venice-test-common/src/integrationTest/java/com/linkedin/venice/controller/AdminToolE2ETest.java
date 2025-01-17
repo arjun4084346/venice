@@ -304,7 +304,7 @@ public class AdminToolE2ETest {
   }
 
   @Test // (timeOut = TEST_TIMEOUT)
-  public void testUpdateStoreRealTimeTopicName() throws Exception {
+  public void testGetDebugInfo() throws Exception {
     String storeName = Utils.getUniqueString("testUpdateStoreRealTimeTopicName");
     List<VeniceControllerWrapper> parentControllers = multiRegionMultiClusterWrapper.getParentControllers();
     String clusterName = clusterNames[0];
@@ -314,6 +314,7 @@ public class AdminToolE2ETest {
     updateStoreParams.setIncrementalPushEnabled(true)
         .setNumVersionsToPreserve(2)
         .setHybridRewindSeconds(1000)
+        .setActiveActiveReplicationEnabled(true)
         .setHybridOffsetLagThreshold(1000);
 
     try (ControllerClient parentControllerClient = new ControllerClient(clusterName, parentControllerURLs)) {

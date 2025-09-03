@@ -97,7 +97,7 @@ import static com.linkedin.venice.controllerapi.ControllerRoute.SET_OWNER;
 import static com.linkedin.venice.controllerapi.ControllerRoute.SET_PARTITION_COUNT;
 import static com.linkedin.venice.controllerapi.ControllerRoute.SET_TOPIC_COMPACTION;
 import static com.linkedin.venice.controllerapi.ControllerRoute.SET_VERSION;
-import static com.linkedin.venice.controllerapi.ControllerRoute.SKIP_ADMIN;
+import static com.linkedin.venice.controllerapi.ControllerRoute.SKIP_ADMIN_MESSAGE;
 import static com.linkedin.venice.controllerapi.ControllerRoute.STORAGE_ENGINE_OVERHEAD_RATIO;
 import static com.linkedin.venice.controllerapi.ControllerRoute.STORE;
 import static com.linkedin.venice.controllerapi.ControllerRoute.STORE_MIGRATION_ALLOWED;
@@ -105,6 +105,7 @@ import static com.linkedin.venice.controllerapi.ControllerRoute.UPDATE_ACL;
 import static com.linkedin.venice.controllerapi.ControllerRoute.UPDATE_ADMIN_OPERATION_PROTOCOL_VERSION;
 import static com.linkedin.venice.controllerapi.ControllerRoute.UPDATE_ADMIN_TOPIC_METADATA;
 import static com.linkedin.venice.controllerapi.ControllerRoute.UPDATE_CLUSTER_CONFIG;
+import static com.linkedin.venice.controllerapi.ControllerRoute.UPDATE_DARK_CLUSTER_CONFIG;
 import static com.linkedin.venice.controllerapi.ControllerRoute.UPDATE_KAFKA_TOPIC_LOG_COMPACTION;
 import static com.linkedin.venice.controllerapi.ControllerRoute.UPDATE_KAFKA_TOPIC_MIN_IN_SYNC_REPLICA;
 import static com.linkedin.venice.controllerapi.ControllerRoute.UPDATE_KAFKA_TOPIC_RETENTION;
@@ -350,6 +351,9 @@ public class AdminSparkServer extends AbstractVeniceService {
         UPDATE_CLUSTER_CONFIG.getPath(),
         new VeniceParentControllerRegionStateHandler(admin, clusterRoutes.updateClusterConfig(admin)));
     httpService.post(
+        UPDATE_DARK_CLUSTER_CONFIG.getPath(),
+        new VeniceParentControllerRegionStateHandler(admin, clusterRoutes.updateDarkClusterConfig(admin)));
+    httpService.post(
         WIPE_CLUSTER.getPath(),
         new VeniceParentControllerRegionStateHandler(admin, clusterRoutes.wipeCluster(admin)));
     httpService.post(
@@ -363,7 +367,7 @@ public class AdminSparkServer extends AbstractVeniceService {
         KILL_OFFLINE_PUSH_JOB.getPath(),
         new VeniceParentControllerRegionStateHandler(admin, jobRoutes.killOfflinePushJob(admin)));
     httpService.post(
-        SKIP_ADMIN.getPath(),
+        SKIP_ADMIN_MESSAGE.getPath(),
         new VeniceParentControllerRegionStateHandler(admin, skipAdminRoute.skipAdminMessage(admin)));
 
     httpService.post(

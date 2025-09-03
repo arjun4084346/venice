@@ -1522,19 +1522,9 @@ public abstract class StoreIngestionTask implements Runnable, Closeable {
      * {@link IllegalStateException} with empty subscription.
      */
     if (!(consumerHasAnySubscription() || hasAnyPendingSubscription())) {
-      if (idleCounter.incrementAndGet() <= getMaxIdleCounter()) {
-        String message = ingestionTaskName + " Not subscribed to any partitions ";
-        if (!REDUNDANT_LOGGING_FILTER.isRedundantException(message)) {
-          LOGGER.info(message);
-        }
-      } else {
+      if (idleCounter.incrementAndGet() > getMaxIdleCounter()) {
         if (!hybridStoreConfig.isPresent() && serverConfig.isUnsubscribeAfterBatchpushEnabled() && subscribedCount != 0
             && subscribedCount == forceUnSubscribedCount) {
-          String msg =
-              ingestionTaskName + " Going back to sleep as consumption has finished and topics are unsubscribed";
-          if (!REDUNDANT_LOGGING_FILTER.isRedundantException(msg)) {
-            LOGGER.info(msg);
-          }
           // long sleep here in case there are more consumer action to perform like KILL/subscription etc.
           Thread.sleep(POST_UNSUB_SLEEP_MS);
           resetIdleCounter();
@@ -3293,6 +3283,11 @@ public abstract class StoreIngestionTask implements Runnable, Closeable {
           if (controlMessage.controlMessageType == START_OF_SEGMENT.getValue()
               && Arrays.equals(consumerRecord.getKey().getKey(), KafkaKey.HEART_BEAT.getKey())) {
             recordHeartbeatReceived(partitionConsumptionState, consumerRecord, kafkaUrl);
+            if (recordTransformer != null) {
+              recordTransformer.onHeartbeat(
+                  consumerRecord.getTopicPartition().getPartitionNumber(),
+                  consumerRecord.getPubSubMessageTime());
+            }
           }
         } catch (Exception e) {
           LOGGER.error("Failed to record Record heartbeat with message: ", e);
@@ -3633,7 +3628,7 @@ public abstract class StoreIngestionTask implements Runnable, Closeable {
   protected void logStorageOperationWhileUnsubscribed(int partition) {
     // TODO Consider if this is going to be too noisy, in which case we could mute it.
     LOGGER.info(
-        "Attempted to interact with the storage engine for partition: {} while the "
+        "Attempted to interact with the storage engine for replica: {} while the "
             + "partitionConsumptionStateMap does not contain this partition. "
             + "Will ignore the operation as it probably indicates the partition was unsubscribed.",
         getReplicaId(versionTopic, partition));
@@ -3700,11 +3695,11 @@ public abstract class StoreIngestionTask implements Runnable, Closeable {
       PubSubPosition startOffset,
       String kafkaURL) {
     PubSubTopicPartition resolvedTopicPartition =
-        resolveTopicPartitionWithKafkaURL(pubSubTopic, partitionConsumptionState, kafkaURL);
+        resolveRtTopicPartitionWithPubSubBrokerAddress(pubSubTopic, partitionConsumptionState, kafkaURL);
     consumerSubscribe(resolvedTopicPartition, startOffset, kafkaURL);
   }
 
-  void consumerSubscribe(PubSubTopicPartition pubSubTopicPartition, PubSubPosition startOffset, String kafkaURL) {
+  void consumerSubscribe(PubSubTopicPartition pubSubTopicPartition, PubSubPosition startPosition, String kafkaURL) {
     String resolvedKafkaURL = kafkaClusterUrlResolver != null ? kafkaClusterUrlResolver.apply(kafkaURL) : kafkaURL;
     if (!Objects.equals(resolvedKafkaURL, kafkaURL) && !isSeparatedRealtimeTopicEnabled()
         && pubSubTopicPartition.getPubSubTopic().isRealTime()) {
@@ -3718,14 +3713,14 @@ public abstract class StoreIngestionTask implements Runnable, Closeable {
         new PartitionReplicaIngestionContext(versionTopic, pubSubTopicPartition, versionRole, workloadType);
     // localKafkaServer doesn't have suffix but kafkaURL may have suffix,
     // and we don't want to pass the resolvedKafkaURL as it will be passed to data receiver for parsing cluster id
-    aggKafkaConsumerService.subscribeConsumerFor(kafkaURL, this, partitionReplicaIngestionContext, startOffset);
+    aggKafkaConsumerService.subscribeConsumerFor(kafkaURL, this, partitionReplicaIngestionContext, startPosition);
 
     // If the record transformer is enabled, consumption should be paused until RocksDB scan for all partitions
     // has completed. Otherwise, there will be resource contention.
     if (recordTransformer != null && recordTransformer.getCountDownStartConsumptionLatchCount() > 0) {
-      LOGGER.info("DaVinciRecordTransformer pausing consumption for: {}", getReplicaId(pubSubTopicPartition));
+      LOGGER.info("DaVinciRecordTransformer pausing consumption for: {}", pubSubTopicPartition);
       aggKafkaConsumerService.pauseConsumerFor(versionTopic, pubSubTopicPartition);
-      LOGGER.info("DaVinciRecordTransformer paused consumption for: {}", getReplicaId(pubSubTopicPartition));
+      LOGGER.info("DaVinciRecordTransformer paused consumption for: {}", pubSubTopicPartition);
       recordTransformerPausedConsumptionQueue.add(pubSubTopicPartition);
     }
   }
@@ -4169,7 +4164,7 @@ public abstract class StoreIngestionTask implements Runnable, Closeable {
     if (isNewStateActive) {
       resetIdleCounter();
     } else {
-      if (getIdleCounter() > getMaxIdleCounter()) {
+      if (isIdleOverThreshold()) {
         close();
       }
     }
@@ -4703,13 +4698,17 @@ public abstract class StoreIngestionTask implements Runnable, Closeable {
    * For RT input topic with separate-RT kafka URL, this method will return topic-partition with separated-RT topic.
    * For other case, it will return topic-partition with input topic.
    */
-  PubSubTopicPartition resolveTopicPartitionWithKafkaURL(
+  PubSubTopicPartition resolveRtTopicPartitionWithPubSubBrokerAddress(
       PubSubTopic topic,
       PartitionConsumptionState partitionConsumptionState,
-      String kafkaURL) {
-    PubSubTopic resolvedTopic = resolveTopicWithKafkaURL(topic, kafkaURL);
+      String pubSubBrokerAddress) {
+    PubSubTopic resolvedTopic = resolveRtTopicWithPubSubBrokerAddress(topic, pubSubBrokerAddress);
     PubSubTopicPartition pubSubTopicPartition = partitionConsumptionState.getSourceTopicPartition(resolvedTopic);
-    LOGGER.info("Resolved topic-partition: {} from kafkaURL: {}", pubSubTopicPartition, kafkaURL);
+    LOGGER.info(
+        "Resolved topic-partition: {} for: {} from pubSubAddress: {}",
+        pubSubTopicPartition,
+        partitionConsumptionState.getReplicaId(),
+        pubSubBrokerAddress);
     return pubSubTopicPartition;
   }
 
@@ -4717,9 +4716,9 @@ public abstract class StoreIngestionTask implements Runnable, Closeable {
    * This method will return resolve topic from input Kafka URL. If it is a separated topic Kafka URL and input topic
    * is RT topic, it will return separate RT topic, otherwise it will return input topic.
    */
-  PubSubTopic resolveTopicWithKafkaURL(PubSubTopic topic, String kafkaURL) {
+  PubSubTopic resolveRtTopicWithPubSubBrokerAddress(PubSubTopic topic, String pubSubBrokerAddress) {
     if (topic.isRealTime() && getKafkaClusterUrlResolver() != null
-        && !kafkaURL.equals(getKafkaClusterUrlResolver().apply(kafkaURL))) {
+        && !pubSubBrokerAddress.equals(getKafkaClusterUrlResolver().apply(pubSubBrokerAddress))) {
       return separateRealTimeTopic;
     }
     return topic;

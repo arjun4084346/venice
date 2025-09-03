@@ -68,6 +68,7 @@ import com.linkedin.venice.controllerapi.StoreMigrationResponse;
 import com.linkedin.venice.controllerapi.StoreResponse;
 import com.linkedin.venice.controllerapi.TrackableControllerResponse;
 import com.linkedin.venice.controllerapi.UpdateClusterConfigQueryParams;
+import com.linkedin.venice.controllerapi.UpdateDarkClusterConfigQueryParams;
 import com.linkedin.venice.controllerapi.UpdateStoragePersonaQueryParams;
 import com.linkedin.venice.controllerapi.UpdateStoreQueryParams;
 import com.linkedin.venice.controllerapi.VersionCreationResponse;
@@ -304,10 +305,20 @@ public class AdminTool {
           response = controllerClient.killOfflinePushJob(topicName);
           printObject(response);
           break;
-        case SKIP_ADMIN:
-          String offset = getRequiredArgument(cmd, Arg.OFFSET, Command.SKIP_ADMIN);
+        case SKIP_ADMIN_MESSAGE:
+          if (!cmd.hasOption(Arg.OFFSET.first()) && !cmd.hasOption(Arg.EXECUTION_ID.first())) {
+            printErrAndExit(
+                "At least one of " + Arg.OFFSET.getArgName() + " or " + Arg.EXECUTION_ID.getArgName()
+                    + " is required.");
+          }
+          if (cmd.hasOption(Arg.OFFSET.first()) && cmd.hasOption(Arg.EXECUTION_ID.first())) {
+            printErrAndExit(
+                "Only one of " + Arg.OFFSET.getArgName() + " or " + Arg.EXECUTION_ID.getArgName() + " is allowed.");
+          }
+          String offset = getOptionalArgument(cmd, Arg.OFFSET);
+          String executionId = getOptionalArgument(cmd, Arg.EXECUTION_ID);
           boolean skipDIV = Boolean.parseBoolean(getOptionalArgument(cmd, Arg.SKIP_DIV, "false"));
-          response = controllerClient.skipAdminMessage(offset, skipDIV);
+          response = controllerClient.skipAdminMessage(offset, skipDIV, executionId);
           printObject(response);
           break;
         case NEW_STORE:
@@ -363,6 +374,9 @@ public class AdminTool {
           break;
         case UPDATE_CLUSTER_CONFIG:
           updateClusterConfig(cmd);
+          break;
+        case UPDATE_DARK_CLUSTER_CONFIG:
+          updateDarkClusterConfig(cmd);
           break;
         case ADD_SCHEMA:
           applyValueSchemaToStore(cmd);
@@ -1237,6 +1251,13 @@ public class AdminTool {
     printSuccess(response);
   }
 
+  private static void updateDarkClusterConfig(CommandLine cmd) {
+    UpdateDarkClusterConfigQueryParams params = getUpdateDarkClusterConfigQueryParams(cmd);
+
+    ControllerResponse response = controllerClient.updateDarkClusterConfig(params);
+    printSuccess(response);
+  }
+
   static UpdateStoreQueryParams getConfigureStoreViewQueryParams(CommandLine cmd) {
     Set<Arg> argSet = new HashSet<>(Arrays.asList(Command.CONFIGURE_STORE_VIEW.getOptionalArgs()));
     argSet.addAll(new HashSet<>(Arrays.asList(Command.CONFIGURE_STORE_VIEW.getRequiredArgs())));
@@ -1405,6 +1426,18 @@ public class AdminTool {
         getOptionalArgument(cmd, Arg.CHILD_CONTROLLER_ADMIN_TOPIC_CONSUMPTION_ENABLED);
     if (adminTopicConsumptionEnabled != null) {
       params.setChildControllerAdminTopicConsumptionEnabled(Boolean.parseBoolean(adminTopicConsumptionEnabled));
+    }
+
+    return params;
+  }
+
+  protected static UpdateDarkClusterConfigQueryParams getUpdateDarkClusterConfigQueryParams(CommandLine cmd) {
+    UpdateDarkClusterConfigQueryParams params = new UpdateDarkClusterConfigQueryParams();
+
+    String storesToReplicateStr = getOptionalArgument(cmd, Arg.STORES_TO_REPLICATE);
+    if (storesToReplicateStr != null) {
+      List<String> storeToReplicate = Utils.parseCommaSeparatedStringToList(storesToReplicateStr);
+      params.setStoresToReplicate(storeToReplicate);
     }
 
     return params;

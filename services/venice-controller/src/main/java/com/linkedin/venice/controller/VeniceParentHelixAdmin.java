@@ -184,6 +184,7 @@ import com.linkedin.venice.controllerapi.StoreComparisonInfo;
 import com.linkedin.venice.controllerapi.StoreDeletedValidationResponse;
 import com.linkedin.venice.controllerapi.StoreResponse;
 import com.linkedin.venice.controllerapi.UpdateClusterConfigQueryParams;
+import com.linkedin.venice.controllerapi.UpdateDarkClusterConfigQueryParams;
 import com.linkedin.venice.controllerapi.UpdateStoragePersonaQueryParams;
 import com.linkedin.venice.controllerapi.UpdateStoreQueryParams;
 import com.linkedin.venice.controllerapi.VersionResponse;
@@ -1502,6 +1503,13 @@ public class VeniceParentHelixAdmin implements Admin {
     int lastVersionNum = store.getLargestUsedVersionNumber();
     Version lastVersion = lastVersionNum > 0 ? store.getVersion(lastVersionNum) : null;
     Optional<String> latestTopic = Optional.empty();
+    if (lastVersion != null) {
+      LOGGER.info(
+          "Found latest version status: {} for store: {}, version: {}",
+          lastVersion.getStatus(),
+          storeName,
+          lastVersionNum);
+    }
     if (lastVersion != null && lastVersion.getStatus() != ERROR && lastVersion.getStatus() != KILLED
         && lastVersion.getStatus() != ONLINE && lastVersion.getStatus() != PARTIALLY_ONLINE) {
       latestTopic = Optional.of(Version.composeKafkaTopic(storeName, lastVersionNum));
@@ -1510,7 +1518,6 @@ public class VeniceParentHelixAdmin implements Admin {
     if (latestTopic.isPresent()) {
       final String latestTopicName = latestTopic.get();
       int versionNumber = Version.parseVersionFromKafkaTopicName(latestTopicName);
-
       Version version = store.getVersion(versionNumber);
       if (version != null && version.isVersionSwapDeferred()
           && (version.getStatus() == STARTED || version.getStatus() == PUSHED)) {
@@ -3287,6 +3294,11 @@ public class VeniceParentHelixAdmin implements Admin {
     getVeniceHelixAdmin().updateClusterConfig(clusterName, params);
   }
 
+  @Override
+  public void updateDarkClusterConfig(String clusterName, UpdateDarkClusterConfigQueryParams params) {
+    getVeniceHelixAdmin().updateDarkClusterConfig(clusterName, params);
+  }
+
   private void validateActiveActiveReplicationEnableConfigs(
       Optional<Boolean> activeActiveReplicationEnabledOptional,
       Optional<Boolean> nativeReplicationEnabledOptional,
@@ -4201,10 +4213,15 @@ public class VeniceParentHelixAdmin implements Admin {
           currentReturnStatus,
           currentReturnStatusDetails);
     }
+
     // Update the parent version status for all pushes except for target region push w/ deferred swap as it's handled
     // separately
     // in DeferredVersionSwapService
     if (currentReturnStatus.equals(ExecutionStatus.COMPLETED)) {
+      if (storeVersion != null && storeVersion.getStatus().equals(ONLINE)) {
+        LOGGER.info("Parent store version {} status is already ONLINE, no need to update it.", kafkaTopic);
+        return;
+      }
       if (isTargetRegionPush && !isPushCompleteInAllRegionsForTargetRegionPush) {
         parentStore.updateVersionStatus(versionNum, PUSHED); // Push is complete in the target regions & only target
                                                              // regions are serving traffic
@@ -4691,6 +4708,7 @@ public class VeniceParentHelixAdmin implements Admin {
         int version = Version.parseVersionFromKafkaTopicName(kafkaTopic);
         parentStore.updateVersionStatus(version, VersionStatus.KILLED);
         repository.updateStore(parentStore);
+        LOGGER.info("Updated store {} version {} status to KILLED", storeName, version);
       }
 
       KillOfflinePushJob killJob = (KillOfflinePushJob) AdminMessageType.KILL_OFFLINE_PUSH_JOB.getNewInstance();
@@ -4736,11 +4754,11 @@ public class VeniceParentHelixAdmin implements Admin {
   }
 
   /**
-   * @see Admin#skipAdminMessage(String, long, boolean)
+   * @see Admin#skipAdminMessage(String, long, boolean, long)
    */
   @Override
-  public void skipAdminMessage(String clusterName, long offset, boolean skipDIV) {
-    getVeniceHelixAdmin().skipAdminMessage(clusterName, offset, skipDIV);
+  public void skipAdminMessage(String clusterName, long offset, boolean skipDIV, long executionId) {
+    getVeniceHelixAdmin().skipAdminMessage(clusterName, offset, skipDIV, executionId);
   }
 
   /**

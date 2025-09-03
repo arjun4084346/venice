@@ -114,39 +114,32 @@ public class BasicConsumerStatsTest {
   }
 
   @Test
-  public void testEmitVersionSwapSuccessCountMetrics() {
-    VeniceResponseStatusCategory responseStatusCategory = SUCCESS;
-    consumerStats.emitVersionSwapCountMetrics(responseStatusCategory);
-
+  public void testEmitVersionSwapCountMetrics() {
+    int defaultNum = 0;
     int expectedNum = 1;
+
+    // Default metrics
+    validateTehutiMetric(tehutiMetricPrefix + "--" + VERSION_SWAP_SUCCESS_COUNT.getMetricName() + ".Total", defaultNum);
+    validateTehutiMetric(tehutiMetricPrefix + "--" + VERSION_SWAP_FAIL_COUNT.getMetricName() + ".Total", defaultNum);
+    validateLongCounterOtelMetric(storeName, VERSION_SWAP_COUNT.getMetricEntity().getMetricName(), defaultNum, SUCCESS);
+    validateLongCounterOtelMetric(storeName, VERSION_SWAP_COUNT.getMetricEntity().getMetricName(), defaultNum, FAIL);
+
+    consumerStats.emitVersionSwapCountMetrics(SUCCESS);
+    consumerStats.emitVersionSwapCountMetrics(FAIL);
+
+    // Success metrics
     validateTehutiMetric(
-        tehutiMetricPrefix + "--" + VERSION_SWAP_SUCCESS_COUNT.getMetricName() + ".Gauge",
+        tehutiMetricPrefix + "--" + VERSION_SWAP_SUCCESS_COUNT.getMetricName() + ".Total",
         expectedNum);
-    validateMinMaxSumAggregationsOtelMetric(
+    validateLongCounterOtelMetric(
         storeName,
         VERSION_SWAP_COUNT.getMetricEntity().getMetricName(),
         expectedNum,
-        expectedNum,
-        expectedNum,
-        expectedNum,
-        responseStatusCategory);
-  }
+        SUCCESS);
 
-  @Test
-  public void testEmitVersionSwapFailCountMetrics() {
-    VeniceResponseStatusCategory responseStatusCategory = FAIL;
-    consumerStats.emitVersionSwapCountMetrics(responseStatusCategory);
-
-    int expectedNum = 1;
-    validateTehutiMetric(tehutiMetricPrefix + "--" + VERSION_SWAP_FAIL_COUNT.getMetricName() + ".Gauge", expectedNum);
-    validateMinMaxSumAggregationsOtelMetric(
-        storeName,
-        VERSION_SWAP_COUNT.getMetricEntity().getMetricName(),
-        expectedNum,
-        expectedNum,
-        expectedNum,
-        expectedNum,
-        responseStatusCategory);
+    // Fail metrics
+    validateTehutiMetric(tehutiMetricPrefix + "--" + VERSION_SWAP_FAIL_COUNT.getMetricName() + ".Total", expectedNum);
+    validateLongCounterOtelMetric(storeName, VERSION_SWAP_COUNT.getMetricEntity().getMetricName(), expectedNum, FAIL);
   }
 
   @Test

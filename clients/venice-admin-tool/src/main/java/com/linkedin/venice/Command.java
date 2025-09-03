@@ -42,6 +42,7 @@ import static com.linkedin.venice.Arg.END_DATE;
 import static com.linkedin.venice.Arg.ENUM_SCHEMA_EVOLUTION_ALLOWED;
 import static com.linkedin.venice.Arg.ETLED_PROXY_USER_ACCOUNT;
 import static com.linkedin.venice.Arg.EXECUTION;
+import static com.linkedin.venice.Arg.EXECUTION_ID;
 import static com.linkedin.venice.Arg.EXPECTED_ROUTER_COUNT;
 import static com.linkedin.venice.Arg.EXTRA_COMMAND_ARGS;
 import static com.linkedin.venice.Arg.FABRIC;
@@ -132,6 +133,7 @@ import static com.linkedin.venice.Arg.STORAGE_PERSONA;
 import static com.linkedin.venice.Arg.STORAGE_QUOTA;
 import static com.linkedin.venice.Arg.STORE;
 import static com.linkedin.venice.Arg.STORES;
+import static com.linkedin.venice.Arg.STORES_TO_REPLICATE;
 import static com.linkedin.venice.Arg.STORE_FILTER_FILE;
 import static com.linkedin.venice.Arg.STORE_LIFECYCLE_HOOKS_LIST;
 import static com.linkedin.venice.Arg.STORE_SIZE;
@@ -212,7 +214,10 @@ public enum Command {
       "Query the ingest status of a running push job. If a version is not specified, the job status of the last job will be printed.",
       new Arg[] { URL, STORE }, new Arg[] { CLUSTER, VERSION }
   ), KILL_JOB("kill-job", "Kill a running push job", new Arg[] { URL, STORE, VERSION }, new Arg[] { CLUSTER }),
-  SKIP_ADMIN("skip-admin", "Skip an admin message", new Arg[] { URL, CLUSTER, OFFSET }, new Arg[] { SKIP_DIV }),
+  SKIP_ADMIN_MESSAGE(
+      "skip-admin-message", "Skip an admin message", new Arg[] { URL, CLUSTER },
+      new Arg[] { SKIP_DIV, OFFSET, EXECUTION_ID }
+  ),
   NEW_STORE(
       "new-store", "", new Arg[] { URL, CLUSTER, STORE, KEY_SCHEMA, VALUE_SCHEMA }, new Arg[] { OWNER, VSON_STORE }
   ),
@@ -317,6 +322,10 @@ public enum Command {
       "update-cluster-config", "Update live cluster configs", new Arg[] { URL, CLUSTER },
       new Arg[] { FABRIC, SERVER_KAFKA_FETCH_QUOTA_RECORDS_PER_SECOND, ALLOW_STORE_MIGRATION,
           CHILD_CONTROLLER_ADMIN_TOPIC_CONSUMPTION_ENABLED }
+  ),
+  UPDATE_DARK_CLUSTER_CONFIG(
+      "update-dark-cluster-config", "Update dark cluster configs under /darkClusterConfig znode",
+      new Arg[] { URL, CLUSTER }, new Arg[] { STORES_TO_REPLICATE }
   ),
   EMPTY_PUSH(
       "empty-push", "Do an empty push into an existing store", new Arg[] { URL, STORE, PUSH_ID, STORE_SIZE },
